@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 import { ChatMessage } from '@/types';
+import { chatService } from '@/lib/chatService';
 
 interface ChatWidgetProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface ChatWidgetProps {
 
 export const ChatWidget: React.FC<ChatWidgetProps> = ({ isOpen, onToggle }) => {
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       role: 'system',
@@ -22,28 +24,44 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ isOpen, onToggle }) => {
     },
   ]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || isLoading) return;
+
+    const userMessage = message;
+    setMessage('');
+    setIsLoading(true);
 
     // Add user message to chat
-    setChatHistory([...chatHistory, {
+    setChatHistory((prev) => [...prev, {
       role: 'user',
-      content: message,
+      content: userMessage,
     }]);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Send message to chat service
+      const response = await chatService.sendMessage(userMessage, 'demo-user');
+      
+      // Add AI response to chat
       setChatHistory((prev) => [
         ...prev,
         {
           role: 'system',
-          content: `I've added a new job application for Google with a salary of $150k using React/Node stack as a fully remote position.`,
+          content: response.message,
         },
       ]);
-    }, 1000);
-
-    setMessage('');
+    } catch (error) {
+      console.error('Chat error:', error);
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          role: 'system',
+          content: 'Sorry, I encountered an error. Please try again.',
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -98,9 +116,10 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ isOpen, onToggle }) => {
               />
               <button
                 type="submit"
-                className="bg-blue-600 text-white rounded-full p-2 hover:bg-blue-700 transition-colors"
+                disabled={isLoading}
+                className="bg-blue-600 text-white rounded-full p-2 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send size={18} />
+                {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
               </button>
             </form>
             <div className="mt-2 text-xs text-gray-500">

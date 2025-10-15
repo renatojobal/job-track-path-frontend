@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -19,92 +19,43 @@ import {
 import { Column } from './Column';
 import { FilterBar } from './FilterBar';
 import { Job, Column as ColumnType } from '@/types';
+import { useJobs } from '@/lib/hooks/useJobs';
 
 interface KanbanBoardProps {
   onJobClick: (job: Job) => void;
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onJobClick }) => {
-  // Initial job data
-  const initialColumns: Record<string, ColumnType> = {
-    'got-interview': {
-      id: 'got-interview',
-      title: 'Got Interview',
-      jobs: [
-        {
-          id: '1',
-          company: 'Google',
-          position: 'Frontend Developer',
-          salary: '$120,000 - $150,000',
-          techStack: ['React', 'TypeScript', 'Node.js'],
-          workMode: 'Remote',
-          applicationDate: '2023-05-15',
-          status: 'got-interview',
-        },
-        {
-          id: '2',
-          company: 'Microsoft',
-          position: 'Full Stack Engineer',
-          salary: '$130,000 - $160,000',
-          techStack: ['React', 'C#', '.NET'],
-          workMode: 'Hybrid',
-          applicationDate: '2023-05-10',
-          status: 'got-interview',
-        },
-      ],
-    },
-    'in-process': {
-      id: 'in-process',
-      title: 'In Process',
-      jobs: [
-        {
-          id: '3',
-          company: 'Amazon',
-          position: 'Software Development Engineer',
-          salary: '$140,000 - $180,000',
-          techStack: ['Java', 'AWS', 'React'],
-          workMode: 'On-site',
-          applicationDate: '2023-05-05',
-          status: 'in-process',
-        },
-      ],
-    },
-    accepted: {
-      id: 'accepted',
-      title: 'Accepted',
-      jobs: [
-        {
-          id: '4',
-          company: 'Netflix',
-          position: 'Senior Frontend Engineer',
-          salary: '$170,000 - $200,000',
-          techStack: ['React', 'JavaScript', 'Node.js'],
-          workMode: 'Remote',
-          applicationDate: '2023-04-20',
-          status: 'accepted',
-        },
-      ],
-    },
-    rejected: {
-      id: 'rejected',
-      title: 'Rejected',
-      jobs: [
-        {
-          id: '5',
-          company: 'Facebook',
-          position: 'UI Engineer',
-          salary: '$130,000 - $160,000',
-          techStack: ['React', 'TypeScript', 'GraphQL'],
-          workMode: 'Hybrid',
-          applicationDate: '2023-04-15',
-          status: 'rejected',
-        },
-      ],
-    },
-  };
-
-  const [columns, setColumns] = useState(initialColumns);
+  const { jobs, loading, error, updateJobStatus } = useJobs();
+  const [columns, setColumns] = useState<Record<string, ColumnType>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Organize jobs into columns based on status
+  useEffect(() => {
+    const organizedColumns: Record<string, ColumnType> = {
+      'got-interview': {
+        id: 'got-interview',
+        title: 'Got Interview',
+        jobs: jobs.filter((job) => job.status === 'got-interview'),
+      },
+      'in-process': {
+        id: 'in-process',
+        title: 'In Process',
+        jobs: jobs.filter((job) => job.status === 'in-process'),
+      },
+      accepted: {
+        id: 'accepted',
+        title: 'Accepted',
+        jobs: jobs.filter((job) => job.status === 'accepted'),
+      },
+      rejected: {
+        id: 'rejected',
+        title: 'Rejected',
+        jobs: jobs.filter((job) => job.status === 'rejected'),
+      },
+    };
+    setColumns(organizedColumns);
+  }, [jobs]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -113,7 +64,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onJobClick }) => {
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (!over) return;
@@ -123,47 +74,71 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onJobClick }) => {
 
     // Find which column contains the dragged job
     let sourceColumnId: string | undefined;
-    let jobIndex: number = -1;
+    let job: Job | undefined;
 
     Object.keys(columns).forEach((columnId) => {
-      const jobIdx = columns[columnId].jobs.findIndex((job) => job.id === activeJobId);
-      if (jobIdx !== -1) {
+      const foundJob = columns[columnId].jobs.find((job) => job.id === activeJobId);
+      if (foundJob) {
         sourceColumnId = columnId;
-        jobIndex = jobIdx;
+        job = foundJob;
       }
     });
 
-    if (!sourceColumnId || sourceColumnId === overColumnId || jobIndex === -1) return;
+    if (!sourceColumnId || !job || sourceColumnId === overColumnId) return;
 
-    setColumns((prev) => {
-      const job = prev[sourceColumnId!].jobs[jobIndex];
-      
-      // Update job status to match the new column
-      const updatedJob = {
-        ...job,
-        status: overColumnId as Job['status'],
-      };
-
-      // Remove from source column
-      const newSourceJobs = [...prev[sourceColumnId!].jobs];
-      newSourceJobs.splice(jobIndex, 1);
-
-      // Add to target column
-      const newTargetJobs = [...prev[overColumnId].jobs, updatedJob];
-
-      return {
-        ...prev,
-        [sourceColumnId!]: {
-          ...prev[sourceColumnId!],
-          jobs: newSourceJobs,
-        },
-        [overColumnId]: {
-          ...prev[overColumnId],
-          jobs: newTargetJobs,
-        },
-      };
-    });
+    try {
+      // Update job status in Supabase
+      await updateJobStatus(activeJobId, overColumnId as Job['status']);
+    } catch (err) {
+      console.error('Failed to update job status:', err);
+      // The useJobs hook will handle the error state
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <FilterBar />
+        <div className="flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-6 mt-6 overflow-x-auto pb-6">
+          {['Got Interview', 'In Process', 'Accepted', 'Rejected'].map((title, index) => (
+            <div key={index} className="flex-1 min-w-[300px] bg-white rounded-md shadow-sm border-t-4 border-t-gray-300">
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-800">{title}</h3>
+                <div className="mt-1 text-sm text-gray-500">Loading...</div>
+              </div>
+              <div className="p-2">
+                <div className="animate-pulse space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="bg-gray-200 rounded-lg h-24"></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col h-full">
+        <FilterBar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center p-6">
+            <div className="text-red-500 mb-4">
+              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">Error loading jobs</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <p className="text-sm text-gray-400">Make sure your Supabase configuration is set up correctly.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">

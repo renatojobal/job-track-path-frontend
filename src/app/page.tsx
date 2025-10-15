@@ -4,14 +4,15 @@ import { useState } from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { ChatWidget } from '@/components/chat/ChatWidget';
+import { JobDetailModal } from '@/components/modals/JobDetailModal';
 import { Job } from '@/types';
 
 export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   const handleJobClick = (job: Job) => {
-    // TODO: Open job detail modal
-    console.log('Job clicked:', job);
+    setSelectedJob(job);
   };
 
   const toggleChat = () => {
@@ -32,6 +33,8 @@ export default function Home() {
       </main>
       
       <ChatWidget isOpen={isChatOpen} onToggle={toggleChat} />
+      
+      <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
     </div>
   );
 }
