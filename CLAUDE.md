@@ -12,14 +12,44 @@ The project is currently empty except for this documentation. As the project dev
 
 ## Development Commands
 
-*Note: These commands will be added once the project setup is complete with package.json and build tools.*
+```bash
+# Install dependencies
+npm install
+
+# Start development server with Turbopack
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+
+# Run linting
+npm run lint
+```
 
 ## Architecture Notes
 
-*This section will be populated as the frontend architecture is established.*
+- **Framework**: Next.js 15.5.5 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Structure**: `/src` directory with App Router pattern
+- **Database**: Supabase (PostgreSQL with Row Level Security)
+- **AI Integration**: n8n workflows for chat functionality
+
+## Project Structure
+
+```
+/src
+├── app/              # Next.js App Router pages
+├── components/       # React components
+├── lib/             # Utilities and configurations
+└── types/           # TypeScript type definitions
+```
 
 ## Important Notes
 
-- This is a frontend application for job tracking functionality
-- Project structure and tooling to be determined based on chosen framework (React, Vue, Angular, etc.)
-- Development workflow and commands will be documented here once established
+- Uses Next.js App Router (not Pages Router)
+- Turbopack enabled for faster builds
+- Project follows the structure outlined in README.md for JobTrackPath SaaS application
