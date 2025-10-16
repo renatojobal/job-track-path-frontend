@@ -17,7 +17,7 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { Column } from './Column';
-import { FilterBar } from './FilterBar';
+import { FilterBar, FilterOptions } from './FilterBar';
 import { Job, Column as ColumnType } from '@/types';
 import { useJobs } from '@/lib/hooks/useJobs';
 
@@ -29,33 +29,116 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onJobClick }) => {
   const { jobs, loading, error, updateJobStatus } = useJobs();
   const [columns, setColumns] = useState<Record<string, ColumnType>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
 
-  // Organize jobs into columns based on status
+  // Apply filters and organize jobs into columns
+  useEffect(() => {
+    setFilteredJobs(jobs);
+  }, [jobs]);
+
+  // Organize filtered jobs into columns based on status
   useEffect(() => {
     const organizedColumns: Record<string, ColumnType> = {
       'got-interview': {
         id: 'got-interview',
         title: 'Got Interview',
-        jobs: jobs.filter((job) => job.status === 'got-interview'),
+        jobs: filteredJobs.filter((job) => job.status === 'got-interview'),
       },
       'in-process': {
         id: 'in-process',
         title: 'In Process',
-        jobs: jobs.filter((job) => job.status === 'in-process'),
+        jobs: filteredJobs.filter((job) => job.status === 'in-process'),
       },
       accepted: {
         id: 'accepted',
         title: 'Accepted',
-        jobs: jobs.filter((job) => job.status === 'accepted'),
+        jobs: filteredJobs.filter((job) => job.status === 'accepted'),
       },
       rejected: {
         id: 'rejected',
         title: 'Rejected',
-        jobs: jobs.filter((job) => job.status === 'rejected'),
+        jobs: filteredJobs.filter((job) => job.status === 'rejected'),
       },
     };
     setColumns(organizedColumns);
-  }, [jobs]);
+  }, [filteredJobs]);
+
+  // Handle filter changes
+  const handleFiltersChange = (filters: FilterOptions) => {
+    let filtered = [...jobs];
+
+    // Search filter
+    if (filters.searchTerm) {
+      const searchTerm = filters.searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (job) =>
+          job.company.toLowerCase().includes(searchTerm) ||
+          job.position.toLowerCase().includes(searchTerm) ||
+          job.techStack.some((tech) => tech.toLowerCase().includes(searchTerm))
+      );
+    }
+
+    // Tech stack filter
+    if (filters.techStack) {
+      filtered = filtered.filter((job) =>
+        job.techStack.some((tech) => tech.toLowerCase().includes(filters.techStack.toLowerCase()))
+      );
+    }
+
+    // Work mode filter
+    if (filters.workMode) {
+      filtered = filtered.filter((job) => job.workMode === filters.workMode);
+    }
+
+    // Date filter
+    if (filters.dateFrom) {
+      filtered = filtered.filter((job) => job.applicationDate >= filters.dateFrom);
+    }
+
+    // Salary filter (basic implementation)
+    if (filters.salaryMin > 40000) {
+      filtered = filtered.filter((job) => {
+        // Extract salary numbers from string (simplified)
+        const salaryMatch = job.salary.match(/\$?([\d,]+)/);
+        if (salaryMatch) {
+          const salary = parseInt(salaryMatch[1].replace(/,/g, ''));
+          return salary >= filters.salaryMin;
+        }
+        return true;
+      });
+    }
+
+    // Sort jobs
+    switch (filters.sortBy) {
+      case 'company':
+        filtered.sort((a, b) => a.company.localeCompare(b.company));
+        break;
+      case 'salary-high':
+        filtered.sort((a, b) => {
+          const getSalary = (salaryStr: string) => {
+            const match = salaryStr.match(/\$?([\d,]+)/);
+            return match ? parseInt(match[1].replace(/,/g, '')) : 0;
+          };
+          return getSalary(b.salary) - getSalary(a.salary);
+        });
+        break;
+      case 'salary-low':
+        filtered.sort((a, b) => {
+          const getSalary = (salaryStr: string) => {
+            const match = salaryStr.match(/\$?([\d,]+)/);
+            return match ? parseInt(match[1].replace(/,/g, '')) : 0;
+          };
+          return getSalary(a.salary) - getSalary(b.salary);
+        });
+        break;
+      case 'newest':
+      default:
+        filtered.sort((a, b) => new Date(b.applicationDate).getTime() - new Date(a.applicationDate).getTime());
+        break;
+    }
+
+    setFilteredJobs(filtered);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -98,7 +181,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onJobClick }) => {
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <FilterBar />
+        <FilterBar onFiltersChange={handleFiltersChange} />
         <div className="flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-6 mt-6 overflow-x-auto pb-6">
           {['Got Interview', 'In Process', 'Accepted', 'Rejected'].map((title, index) => (
             <div key={index} className="flex-1 min-w-[300px] bg-white rounded-md shadow-sm border-t-4 border-t-gray-300">
@@ -123,7 +206,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onJobClick }) => {
   if (error) {
     return (
       <div className="flex flex-col h-full">
-        <FilterBar />
+        <FilterBar onFiltersChange={handleFiltersChange} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center p-6">
             <div className="text-red-500 mb-4">
@@ -142,7 +225,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onJobClick }) => {
 
   return (
     <div className="flex flex-col h-full">
-      <FilterBar />
+      <FilterBar onFiltersChange={handleFiltersChange} />
       <div className="flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-6 mt-6 overflow-x-auto pb-6">
         <DndContext
           sensors={sensors}

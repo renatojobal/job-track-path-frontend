@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, Calendar, User, Building, X, MessageCircle } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
+import { AuthWrapper } from '../AuthWrapper';
 
 // Mock data for conversations (will be replaced with real data later)
 const initialConversations = [
@@ -212,8 +213,9 @@ export default function ConversationsPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <Navbar />
+    <AuthWrapper>
+      <div className="flex flex-col min-h-screen bg-gray-50">
+        <Navbar />
       
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Conversations</h1>
@@ -467,5 +469,6 @@ export default function ConversationsPage() {
         </div>
       )}
     </div>
+    </AuthWrapper>
   );
 }

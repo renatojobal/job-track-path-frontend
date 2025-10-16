@@ -3,11 +3,40 @@
 import React, { useState } from 'react';
 import { Search, Filter, ChevronDown } from 'lucide-react';
 
-export const FilterBar: React.FC = () => {
+export interface FilterOptions {
+  searchTerm: string;
+  sortBy: 'newest' | 'salary-high' | 'salary-low' | 'company';
+  salaryMin: number;
+  salaryMax: number;
+  techStack: string;
+  workMode: string;
+  dateFrom: string;
+}
+
+interface FilterBarProps {
+  onFiltersChange?: (filters: FilterOptions) => void;
+}
+
+export const FilterBar: React.FC<FilterBarProps> = ({ onFiltersChange }) => {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>({
+    searchTerm: '',
+    sortBy: 'newest',
+    salaryMin: 40000,
+    salaryMax: 250000,
+    techStack: '',
+    workMode: '',
+    dateFrom: '',
+  });
 
   const toggleFilters = () => {
     setIsFiltersOpen(!isFiltersOpen);
+  };
+
+  const handleFilterChange = (key: keyof FilterOptions, value: string | number) => {
+    const newFilters = { ...filters, [key]: value };
+    setFilters(newFilters);
+    onFiltersChange?.(newFilters);
   };
 
   return (
@@ -19,6 +48,8 @@ export const FilterBar: React.FC = () => {
           </div>
           <input
             type="text"
+            value={filters.searchTerm}
+            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             placeholder="Search jobs..."
           />
@@ -37,11 +68,15 @@ export const FilterBar: React.FC = () => {
             />
           </button>
           
-          <select className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-            <option>Sort by: Newest</option>
-            <option>Sort by: Salary (high to low)</option>
-            <option>Sort by: Salary (low to high)</option>
-            <option>Sort by: Company name</option>
+          <select 
+            value={filters.sortBy}
+            onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+          >
+            <option value="newest">Sort by: Newest</option>
+            <option value="salary-high">Sort by: Salary (high to low)</option>
+            <option value="salary-low">Sort by: Salary (low to high)</option>
+            <option value="company">Sort by: Company name</option>
           </select>
         </div>
       </div>
@@ -55,14 +90,16 @@ export const FilterBar: React.FC = () => {
             <div className="flex items-center space-x-2">
               <input
                 type="range"
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 min="40000"
                 max="250000"
                 step="10000"
+                value={filters.salaryMin}
+                onChange={(e) => handleFilterChange('salaryMin', parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
               />
             </div>
             <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>$40k</span>
+              <span>${(filters.salaryMin / 1000).toFixed(0)}k</span>
               <span>$250k</span>
             </div>
           </div>
@@ -71,13 +108,17 @@ export const FilterBar: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tech Stack
             </label>
-            <select className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-              <option>All technologies</option>
-              <option>React</option>
-              <option>TypeScript</option>
-              <option>Node.js</option>
-              <option>Python</option>
-              <option>Java</option>
+            <select 
+              value={filters.techStack}
+              onChange={(e) => handleFilterChange('techStack', e.target.value)}
+              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+            >
+              <option value="">All technologies</option>
+              <option value="React">React</option>
+              <option value="TypeScript">TypeScript</option>
+              <option value="Node.js">Node.js</option>
+              <option value="Python">Python</option>
+              <option value="Java">Java</option>
             </select>
           </div>
           
@@ -86,15 +127,19 @@ export const FilterBar: React.FC = () => {
               Work Mode
             </label>
             <div className="flex space-x-2">
-              <button className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                Remote
-              </button>
-              <button className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                Hybrid
-              </button>
-              <button className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                On-site
-              </button>
+              {['Remote', 'Hybrid', 'On-site'].map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => handleFilterChange('workMode', filters.workMode === mode ? '' : mode)}
+                  className={`px-3 py-1 text-xs font-medium rounded-full ${
+                    filters.workMode === mode
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
             </div>
           </div>
           
@@ -104,6 +149,8 @@ export const FilterBar: React.FC = () => {
             </label>
             <input
               type="date"
+              value={filters.dateFrom}
+              onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
               className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
             />
           </div>
